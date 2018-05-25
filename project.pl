@@ -64,9 +64,18 @@ dfs([c(R,C)|T],Visited) :- not(member(c(R,C),Visited)),
                            append(Nbs,T, ToVisit),
                            dfs(ToVisit,[c(R,C)|Visited]).
 
-begin :- begin(1,2).
+begin :-   write("to play as User write 'u' ,to Computer write 'c' : "),read(Z) ,
+           (   Z='u' , begin(1,2),!
+           ;   Z='c' , solveComputer ).
+solveComputer:- get_numR(X),get_numC(Y), % her as for(1 to number Row )for(1 to number Coloum)
+                  row(R),col(C),
+                  % check solve if correct print it ...
+                 (X=R,Y=C , checkSolve(Res) ,!
+                 ;\+(X=R , Y=C)
+                 % her but color cell green or blue and try it
+                                  ).
 begin(X,Y) :- X=Y ,! ; \+(X=Y),
-      write("to insert cell write 'y' ,to check write 'n' : "),read(Z),
+      write("to insert cell write 'y' ,to check write 'c' : "),read(Z),
               solve(Z,Res),\+print ,(Res = 1 , begin(X,X)
                                     ;Res = 0 , begin(X,Y)).
 
@@ -77,7 +86,7 @@ solve(T,Res):- T='y' ,write("Enter Row Cell : "),read(X),
                      (Z=green;Z=blue),inside(X,Y),\+fxd_cell(X,Y,_),
                       retract(cell(X,Y,_)) ,assert(cell(X,Y,Z)),
                       Res is 0,!
-              ;T='n' ,checkSolve(Res1) ,
+              ;T='c' ,checkSolve(Res1) ,
                      (Res1='T' , write("You Win"),nl,Res is 1
                      ;Res1='F' , write("Not Correct Solve ") ,nl , Res is 0) ,!
               ;write("Not Correc Input ... "),nl,Res is 0.
