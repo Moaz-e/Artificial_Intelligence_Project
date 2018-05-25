@@ -85,8 +85,6 @@ checkSolve(Res):- seaLonely ,\+ exist4Neighbors ,theIslandsHaveSingleFixedCell,n
                   ; Res = 'F'.
 lengt([],0).
 lengt([c(_,_)|H],Len):- length(H,L1),Len is L1+1.
-
-% 1
 seaLonely :- findall(c(R,C),cell(R,C,blue),[c(X,Y)|_]),
              findall(c(R,C),cell(R,C,green),L),
              dfs(c(X,Y),List),
@@ -95,7 +93,6 @@ seaLonely :- findall(c(R,C),cell(R,C,blue),[c(X,Y)|_]),
              Temp is SizeGrid-Lengthgreen,
              LengthSea = Temp .
 
-% 2
 exist4Neighbors :- findall(c(R,C),cell(R,C,blue),[c(X,Y)|_]),
                    dfs(c(X,Y),List),check(List,List,Z),
                 %   write(Z),
@@ -106,7 +103,7 @@ check([c(R,C)|H],List,Z):- check(H,List,Z1),X is R+1 , Y is C+1,
                            member(c(R,Y),List),Z is Z1+1,!
                           ;Z is Z1).
 
-% 3
+
 theIslandsHaveSingleFixedCell :- findall(c(R,C),cell(R,C,green),L),
                            %      write(L),nl,
                                  allIslandsHaveSingleFixedCell(L).
@@ -118,7 +115,7 @@ allIslandsHaveSingleFixedCell([c(X,Y)|H]):- allIslandsHaveSingleFixedCell(H) ,
 countFixedCell([],0).
 countFixedCell([c(X,Y)|H],Z):- countFixedCell(H,Z1), ( fxd_cell(X,Y,_),Z is Z1+1 ,!
                                                      ; Z is Z1).
-% 4
+
 numIslandsCellAccept :- findall(c(R,C),cell(R,C,green),L),
                        % write(L),nl,
                         checkAllIslands(L).
