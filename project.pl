@@ -1,5 +1,5 @@
-row(4).
-col(4).
+row(3).
+col(3).
 fxd_cell(1,2,3).
 fxd_cell(1,6,1).
 fxd_cell(3,1,2).
@@ -64,20 +64,19 @@ dfs([c(R,C)|T],Visited) :- not(member(c(R,C),Visited)),
                            append(Nbs,T, ToVisit),
                            dfs(ToVisit,[c(R,C)|Visited]).
 
-begin :-   write("to play as User write 'u' ,to Computer write 'c' : "),read(Z) ,
-           (   Z='u' , begin(1,2),!
-           ;   Z='c' , solveComputer ).
-solveComputer:- get_numR(X),get_numC(Y), % her as for(1 to number Row )for(1 to number Coloum)
-                  row(R),col(C),
-                  % check solve if correct print it ...
-                 (X=R,Y=C , checkSolve(Res) ,!
-                 ;\+(X=R , Y=C)
-                 % her but color cell green or blue and try it
-                                  ).
-begin(X,Y) :- X=Y ,! ; \+(X=Y),
-      write("to insert cell write 'y' ,to check write 'c' : "),read(Z),
-              solve(Z,Res),\+print ,(Res = 1 , begin(X,X)
-                                    ;Res = 0 , begin(X,Y)).
+begin :-  write("to play as user 'u' ,Computer 'c' : "),read(Z),
+          begin(1,2,Z).
+begin(X,Y,H) :- X=Y ,! ; \+(X=Y),
+     ( H='u',write("to insert cell write 'y' ,to check write 'c' : "),read(Z),
+              solve(Z,Res),\+print ,(Res = 1 , begin(X,X,H)
+                                    ;Res = 0 , begin(X,Y,H)) ,!
+     ; H='c',solveCom() ).
+solveCom():- findall(c(R,C),cell(R,C,blue),L) ,backtracking(L).
+
+backtracking([]):- checkSolve(Res), Res='T' , write("Computer Win") ,nl , \+print,nl ,fail.
+backtracking([c(X,Y)|L]):- retract(cell(X,Y,_)) ,assert(cell(X,Y,green)), backtracking(L),fail
+                          ; retract(cell(X,Y,_)) ,assert(cell(X,Y,blue)), backtracking(L).
+
 
 solve(T,Res):- T='y' ,write("Enter Row Cell : "),read(X),
                       write("Enter Coloum Cell : "),read(Y),
@@ -87,7 +86,7 @@ solve(T,Res):- T='y' ,write("Enter Row Cell : "),read(X),
                       retract(cell(X,Y,_)) ,assert(cell(X,Y,Z)),
                       Res is 0,!
               ;T='c' ,checkSolve(Res1) ,
-                     (Res1='T' , write("You Win"),nl,Res is 1
+                     (Res1='T' , write("You Win"),nl,Res is 1 ,!
                      ;Res1='F' , write("Not Correct Solve ") ,nl , Res is 0) ,!
               ;write("Not Correc Input ... "),nl,Res is 0.
 checkSolve(Res):- seaLonely ,\+ exist4Neighbors ,theIslandsHaveSingleFixedCell,numIslandsCellAccept ,Res = 'T',!
