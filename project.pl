@@ -1,15 +1,7 @@
 row(6).
 col(6).
-fxd_cell(1,2,3).
-fxd_cell(1,6,1).
-fxd_cell(3,1,2).
-fxd_cell(3,4,2).
-fxd_cell(5,2,1).
-fxd_cell(5,5,2).
-fxd_cell(6,3,2).
-%fxd_cell(7,1,1).
-%fxd_cell(7,5,1).
-%fxd_cell(7,7,6).
+fxd_cell(5,5,3).
+fxd_cell(6,4,7).
 
 :-dynamic cell/3.
 :-dynamic node/1.
@@ -89,7 +81,8 @@ backtracking([c(X,Y)|L]):- sumGreenCell(SumFxdCell),SumFxdCell>0,Temp is SumFxdC
                            retract(cell(X,Y,_)) ,assert(cell(X,Y,green)), \+backtracking(L),
                            retractall(sumGreenCell(_)),assert(sumGreenCell(SumFxdCell)),fail
                           ; retract(cell(X,Y,_)) ,assert(cell(X,Y,blue)), backtracking(L).
-smartSolve():- color_all_neighbor_cell_with_one,color_blue_if_can_not_color_green,\+print,
+smartSolve():- color_all_neighbor_cell_with_one,color_blue_if_can_not_color_green,color_blue_if_I_can_not_reachable_to_fixed_cell,
+               \+print,
                 findall(c(R,C),cell(R,C,white),L) ,\+backtracking(L).
 
 
@@ -113,6 +106,9 @@ changeToBlue([c(X,Y)|H]):- changeToBlue(H), retract(cell(X,Y,_)) ,assert(cell(X,
 changeToBlue([]).
 changeToWhite([c(X,Y)|H]):- changeToWhite(H), retract(cell(X,Y,_)) ,assert(cell(X,Y,white)).
 changeToWhite([]).
+changeToGreen([c(X,Y)|H]):- changeToGreen(H), retract(cell(X,Y,_)) ,assert(cell(X,Y,green)).
+changeToGreen([]).
+
 lengt([],0).
 lengt([c(_,_)|H],Len):- lengt(H,L1),Len is L1+1.
 
@@ -189,20 +185,142 @@ color_blue_if_can_not_color_green :- findall(c(R,C),cell(C,R,white),List),check_
 
 % ------------------------------------------------------------------------
 
-
-%check_if_I_can_find_more_than_one_fixed_cell_DFS([]).
-% check_if_I_can_find_more_than_one_fixed_cell_DFS(([c(R,C)|T]):-
-% check_if_I_can_find_more_than_one_fixed_cell_DFS((T),
-
-
-
-
+removeOut3([c(R,C)|H],L):- removeOut3(H,L1),
+                         (inside(R,C),cell(R,C,Y),
+                               ( (Y = white ; Y = green),! ,L = [c(R,C)|L1];
+                                 L = L1)
+                        ;\+inside(R,C),L = L1).
+removeOut3([],[]).
 
 
-
-
-
+adj3(c(R,C),L):- X is R+1 , Y is C+1, X1 is R-1 , Y1 is C-1,
+                   L1 = [c(X,C),c(X1,C),c(R,Y),c(R,Y1)],
+                   removeOut3(L1,L).
 
 
 
+%% Dfs starting from a root
+dfs2(c(R,C),Z) :- retractall(node(_)),
+               dfs2([c(R,C)],[]),
+               findall(c(X,Y), node(c(X,Y)), L),
+         %      write(L),
+               Z=L.
+%% dfs(ToVisit, Visited)
+%% Done, all visited
+dfs2([],_).
+%% Skip elements that are already visited
+dfs2([c(R,C)|T],Visited) :- member(c(R,C),Visited),
+                           dfs2(T,Visited).
+%% Add all neigbors of the head to the toVisit
+dfs2([c(R,C)|T],Visited) :- not(member(c(R,C),Visited)),
+                           assert(node(c(R,C))),
+                           adj3(c(R,C),Nbs),
+                           append(Nbs,T, ToVisit),
+                           dfs2(ToVisit,[c(R,C)|Visited]).
 
+
+
+check_if_I_can_reachable_to_fixed_cell([]).
+check_if_I_can_reachable_to_fixed_cell([c(R,C)|T]) :- check_if_I_can_reachable_to_fixed_cell(T),
+                                                     dfs2(c(R,C),List),countFixedCell(List,N) ,
+                                                     (N=0 , retract(cell(R,C,_)),assert(cell(R,C,blue)),!
+                                                     ;N > 0                                   ).
+
+
+color_blue_if_I_can_not_reachable_to_fixed_cell :- findall(c(R,C),cell(R,C,white),List) , check_if_I_can_reachable_to_fixed_cell(List).
+
+% -----------------------------not complete-----------------------------
+change_white_to_blue([]).
+change_white_to_blue([c(R,C)|T]) :- change_white_to_blue(T), cell(R,C,Color),(Color=white , retract(cell(R,C,_)),assert(cell(R,C,blue))
+                                                                             ; not(Color=white)  ).
+
+count_blue_cell([],0).
+count_blue_cell([c(R,C)|T],N) :- count_blue_cell(T,N1),cell(R,C,Color),(Color = blue ,N is N1 + 1;
+                                                                                   N is N1).
+count_white_cell([],0).
+count_white_cell([c(R,C)|T],N) :- count_white_cell(T,N1),cell(R,C,Color),(Color = white ,N is N1 + 1;
+                                                                                   N is N1).
+
+
+removeOut4([c(R,C)|H],L):- removeOut3(H,L1),
+                         (inside(R,C),cell(R,C,Y),
+                               ( (Y = white ; Y = blue),! ,L = [c(R,C)|L1];
+                                 L = L1)
+                        ;\+inside(R,C),L = L1).
+removeOut4([],[]).
+
+
+adj4(c(R,C),L):- X is R+1 , Y is C+1, X1 is R-1 , Y1 is C-1,
+                   L1 = [c(X,C),c(X1,C),c(R,Y),c(R,Y1)],
+                   removeOut4(L1,L).
+
+
+
+%% Dfs starting from a root
+dfs_and_color(c(R,C)) :- retractall(node(_)),
+               dfs_and_color([c(R,C)],[])
+            %   findall(c(X,Y), node(c(X,Y)), L)
+         %      write(L),
+               .
+%% dfs(ToVisit, Visited)
+%% Done, all visited
+dfs_and_color([],_).
+%% Skip elements that are already visited
+dfs_and_color([c(R,C)|T],Visited) :- member(c(R,C),Visited),
+                           dfs_and_color(T,Visited).
+%% Add all neigbors of the head to the toVisit
+dfs_and_color([c(R,C)|T],Visited) :- not(member(c(R,C),Visited)),
+                           assert(node(c(R,C))),
+                           adj4(c(R,C),Nbs),count_white_cell(Nbs,W),count_blue_cell(Nbs,B),write(c(R,C)) ,write(' ') , write(w(W,B)) ,nl,
+                           (W=1 , B = 0 , change_white_to_blue(Nbs) ,append(Nbs,T, ToVisit)
+                           ;not(B=0),append([],T,ToVisit)),
+                           dfs_and_color(ToVisit,[c(R,C)|Visited]).
+
+
+check_if_I_have_one_connection([]).
+check_if_I_have_one_connection([c(R,C)|T]) :- check_if_I_have_one_connection(T),write(c(R,C)),nl,
+                                              dfs_and_color(c(R,C)).
+
+
+
+color_blue_if_I_have_one_connected_to_blue :- findall(c(R,C),cell(R,C,blue),List),check_if_I_have_one_connection(List).
+
+
+% ------------------------------------------------------------------------
+
+check_if_must_color_blue([]).
+check_if_must_color_blue([c(R,C)|T]) :- check_if_must_color_blue(T),
+     (retract(cell(R,C,_)),assert(cell(R,C,green)),findall(c(R,C),cell(R,C,white),temp),changeToBlue(temp),seaLonely
+         ;\+seaLonely,retract(cell(R,C,_)),assert(cell(R,C,blue))),changeToWhite(temp).
+
+
+color_blue_if_not_blue_not_remain_connected :- findall(c(R,C),cell(R,C,white),List),check_if_must_color_blue(List).
+
+
+
+% ------------------------------------------------------------------------
+
+removeOut5([c(R,C)|H],L):- removeOut5(H,L1),
+                         (inside(R,C),cell(R,C,Y),
+                               ( Y = white,! ,L = [c(R,C)|L1];
+                                 L = L1)
+                        ;\+inside(R,C),L = L1).
+removeOut5([],[]).
+
+
+adj5(c(R,C),L):- X is R+1 , Y is C+1, X1 is R-1 , Y1 is C-1,
+                   L1 = [c(X,C),c(X1,C),c(R,Y),c(R,Y1)],
+                   removeOut5(L1,L).
+
+
+
+check_if_fixed_cell_have_one_path([]).
+
+check_if_fixed_cell_have_one_path([c(R,C)|T]) :- check_if_fixed_cell_have_one_path(T),fxd_cell(R,C,Num),
+    ( Num > 1 , adj5(c(R,C),Nbs),lengt(Nbs,N),(N = 1,! , changeToGreen(Nbs)
+                                               ;   N > 1)
+    ; Num = 1).
+
+color_green_if_fixed_cell_have_one_path :- findall(c(R,C),fxd_cell(R,C,_),List) ,check_if_fixed_cell_have_one_path(List).
+
+% ------------------------------------------------------------------------
