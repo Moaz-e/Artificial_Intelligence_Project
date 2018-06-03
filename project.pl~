@@ -1,36 +1,44 @@
-Row(3).
-col(3).
+row(6).
+col(6).
 fxd_cell(1,2,3).
 fxd_cell(1,6,1).
 fxd_cell(3,1,2).
-fxd_cell(3,4,1).
+fxd_cell(3,4,2).
 fxd_cell(5,2,1).
 fxd_cell(5,5,2).
 fxd_cell(6,3,2).
-fxd_cell(7,1,1).
-fxd_cell(7,5,1).
-fxd_cell(7,7,6).
+%fxd_cell(7,1,1).
+%fxd_cell(7,5,1).
+%fxd_cell(7,7,6).
 
+:-dynamic cell/3.
+:-dynamic node/1.
+:-dynamic sumGreenCell/1.
 
-clear :- retractall(cell(_,_,_)).
+clear :- retractall(cell(_,_,_)),retractall(sumGreenCell(_)).
 
-generate(X,Y,L):- X<Y ,X1 is X+1 ,
-                  generate(X1,Y,L1),L=[X|L1]
+generate(X,Y,L):- X<Y ,X1 is X+1 ,generate(X1,Y,L1),L=[X|L1]
                  ;X=Y , L = [X].
 get_numR(Num):- row(R),generate(1,R,L), member(Num,L).
 get_numC(Num):- col(C),generate(1,C,L), member(Num,L).
-loop_blue :- get_numR(Row), get_numC(Col) ,
-             assert(cell(Row, Col, blue)) ,fail.
+
+loop_white :- get_numR(Row), get_numC(Col) ,
+             assert(cell(Row, Col, white)) ,fail.
 loop_green:- get_numR(Row), get_numC(Col) ,fxd_cell(Row,Col,_),
-             retract(cell(Row,Col,blue)) ,
+             retract(cell(Row,Col,white)) ,
              assert(cell(Row,Col,green)) ,fail.
-init :- clear , \+loop_blue , \+loop_green,\+print .
+getSum([],0).
+getSum([H|T],Res):- getSum(T,Res1),X is H-1,Res is Res1+X.
+sumFxdCell :- findall(Z,fxd_cell(_,_,Z),L),getSum(L,Z),assert(sumGreenCell(Z)).
+
+init :- clear , \+loop_white , \+loop_green,\+print ,sumFxdCell,sumGreenCell(Z),write(Z),nl .
 
 print :- get_numR(Row),get_numC(Col),
         ( fxd_cell(Row,Col,Z),write(Z),write(' ');
           \+fxd_cell(Row,Col,_) , cell(Row,Col,T),
               (   T=green ,write('G'),write(' ');
-                  T=blue  ,write('B'),write(' ') ) ),
+                  T=blue  ,write('B'),write(' ');
+                  T=white ,write('w'),write(' ')) ),
         col(ColNum),Col = ColNum ,nl,fail.
 
 
@@ -71,28 +79,42 @@ begin(X,Y,H) :- X=Y ,! ; \+(X=Y),
               solve(Z,Res),\+print ,(Res = 1 , begin(X,X,H)
                                     ;Res = 0 , begin(X,Y,H)) ,!
      ; H='c',solveCom() ).
-solveCom():- findall(c(R,C),cell(R,C,blue),L) ,backtracking(L).
-
-backtracking([]):- checkSolve(Res), Res='T' , write("Computer Win") ,nl , \+print,nl ,fail.
-backtracking([c(X,Y)|L]):- retract(cell(X,Y,_)) ,assert(cell(X,Y,green)), backtracking(L),fail
+solveCom():- write("to Smart Solve 's' ,to Backtracking Solve 'b' : "),read(Z),
+             (   Z = 's' , smartSolve()
+             ;   Z = 'b' , backtrackingSolve()).
+backtrackingSolve():- findall(c(R,C),cell(R,C,white),L) ,\+backtracking(L).
+backtracking([]):-  checkSolve(Res), Res='T' , write("Computer Win") ,nl , \+print,nl ,fail.
+backtracking([c(X,Y)|L]):- sumGreenCell(SumFxdCell),SumFxdCell>0,Temp is SumFxdCell-1,
+                           retract(sumGreenCell(SumFxdCell)),assert(sumGreenCell(Temp)),
+                           retract(cell(X,Y,_)) ,assert(cell(X,Y,green)), \+backtracking(L),
+                           retractall(sumGreenCell(_)),assert(sumGreenCell(SumFxdCell)),fail
                           ; retract(cell(X,Y,_)) ,assert(cell(X,Y,blue)), backtracking(L).
+smartSolve():- color_all_neighbor_cell_with_one,color_blue_if_can_not_color_green,\+print,
+                findall(c(R,C),cell(R,C,white),L) ,\+backtracking(L).
 
 
 solve(T,Res):- T='y' ,write("Enter Row Cell : "),read(X),
                       write("Enter Coloum Cell : "),read(Y),
                       write("Enter Color Cell : "),read(Z),
                       write(cell(X,Y,Z)),nl,
-                     (Z=green;Z=blue),inside(X,Y),\+fxd_cell(X,Y,_),
+                     (Z=green;Z=blue;Z = white),inside(X,Y),\+fxd_cell(X,Y,_),
                       retract(cell(X,Y,_)) ,assert(cell(X,Y,Z)),
                       Res is 0,!
               ;T='c' ,checkSolve(Res1) ,
                      (Res1='T' , write("You Win"),nl,Res is 1 ,!
                      ;Res1='F' , write("Not Correct Solve ") ,nl , Res is 0) ,!
               ;write("Not Correc Input ... "),nl,Res is 0.
-checkSolve(Res):- seaLonely ,\+ exist4Neighbors ,theIslandsHaveSingleFixedCell,numIslandsCellAccept ,Res = 'T',!
-                  ; Res = 'F'.
+checkSolve(Res):- findall(c(R,C),cell(R,C,white),L), changeToBlue(L),
+                  (   seaLonely ,\+ exist4Neighbors ,theIslandsHaveSingleFixedCell,
+                      numIslandsCellAccept,%changeToWhite(L)
+                  Res = 'T',!
+                  ; Res = 'F' ,changeToWhite(L)) .
+changeToBlue([c(X,Y)|H]):- changeToBlue(H), retract(cell(X,Y,_)) ,assert(cell(X,Y,blue)).
+changeToBlue([]).
+changeToWhite([c(X,Y)|H]):- changeToWhite(H), retract(cell(X,Y,_)) ,assert(cell(X,Y,white)).
+changeToWhite([]).
 lengt([],0).
-lengt([c(_,_)|H],Len):- length(H,L1),Len is L1+1.
+lengt([c(_,_)|H],Len):- lengt(H,L1),Len is L1+1.
 
 % 1
 seaLonely :- findall(c(R,C),cell(R,C,blue),[c(X,Y)|_]),
@@ -122,19 +144,65 @@ allIslandsHaveSingleFixedCell([]).
 allIslandsHaveSingleFixedCell([c(X,Y)|H]):- allIslandsHaveSingleFixedCell(H) ,
                                             dfs(c(X,Y),List),countFixedCell(List,Num),
                                         %    write("Num = "),write(Num),nl,
-                                            Num = 1,!.
+                                            Num = 1.
 countFixedCell([],0).
 countFixedCell([c(X,Y)|H],Z):- countFixedCell(H,Z1), ( fxd_cell(X,Y,_),Z is Z1+1 ,!
                                                      ; Z is Z1).
 % 4
-numIslandsCellAccept :- findall(c(R,C),cell(R,C,green),L),
+numIslandsCellAccept :- findall(c(R,C,X),fxd_cell(R,C,X),L),
                        % write(L),nl,
                         checkAllIslands(L).
 checkAllIslands([]).
-checkAllIslands([c(X,Y)|H]):- checkAllIslands(H) , dfs(c(X,Y),List),lengt(List,Length),
-                                                  numInFixedCell(List,Num),
+checkAllIslands([c(X,Y,Num)|H]):- checkAllIslands(H) , dfs(c(X,Y),List),lengt(List,Length),
                                             %      write(Num),write(' '),write(Length),nl,
-                                                  Num = Length ,! .
-numInFixedCell([], -1).
-numInFixedCell([c(X,Y)|H],Z):- numInFixedCell(H,Z1), ( fxd_cell(X,Y,R),Z is R ,!
-                                                     ; Z is Z1).
+                                                  Num = Length  .
+
+% ----------------------------------------------------------------------
+removeOut2([c(R,C)|H],L):- removeOut2(H,L1),
+                         (inside(R,C),L = [c(R,C)|L1]
+                        ;\+inside(R,C),L = L1).
+removeOut2([],[]).
+adj2(c(R,C),L):- X is R+1 , Y is C+1, X1 is R-1 , Y1 is C-1,
+                   L1 = [c(X,C),c(X1,C),c(R,Y),c(R,Y1)],
+                   removeOut2(L1,L).
+colorNeighbor(c(R,C)):- adj2(c(R,C),L),changeToBlue(L).
+color_neighbor_to_blue([]).
+color_neighbor_to_blue([c(R,C)|T]) :- color_neighbor_to_blue(T),colorNeighbor(c(R,C)).
+
+
+
+color_all_neighbor_cell_with_one :- findall(c(R,C),fxd_cell(R,C,1),L) , color_neighbor_to_blue(L).
+
+
+
+
+% ----------------------------------------------------------------------
+check_if_I_can_find_more_than_one_fixed_cell([]).
+check_if_I_can_find_more_than_one_fixed_cell([c(R,C)|T]):- check_if_I_can_find_more_than_one_fixed_cell(T),
+                                                           adj2(c(R,C),L),countFixedCell(L,Z),
+                                                           (   Z>1,retract(cell(R,C,_)) ,assert(cell(R,C,blue))
+                                                           ;   Z<2).
+
+color_blue_if_can_not_color_green :- findall(c(R,C),cell(C,R,white),List),check_if_I_can_find_more_than_one_fixed_cell(List).
+
+
+
+% ------------------------------------------------------------------------
+
+
+%check_if_I_can_find_more_than_one_fixed_cell_DFS([]).
+% check_if_I_can_find_more_than_one_fixed_cell_DFS(([c(R,C)|T]):-
+% check_if_I_can_find_more_than_one_fixed_cell_DFS((T),
+
+
+
+
+
+
+
+
+
+
+
+
+
